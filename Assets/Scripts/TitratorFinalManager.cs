@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,6 +23,8 @@ public class TitratorFinalManager : MonoBehaviour
     public bool introAudioFinished = false;
     public bool hasSkinnedMeshRenderer = false;
     public UIManager uiManager;
+    public bool rewindChapter = false;
+    public bool ffChapter = false;
     
     // Start is called before the first frame update
     void Start()
@@ -47,6 +50,7 @@ public class TitratorFinalManager : MonoBehaviour
         audioSource.Play();
     }
 
+
     public void PlayNextEpisode()
     {
         StartCoroutine(PlayTimelineEpisode());
@@ -69,6 +73,7 @@ public class TitratorFinalManager : MonoBehaviour
                     uiManager.CollapseMenu();
                     GameObject.Find("SimScriptText").GetComponent<TextMeshProUGUI>().text = "Click the titrator knob to turn it from \"off\" to \"standby\"";
                     introAudioFinished = true;
+                    titrationDirector.Play();
                     break;
                 }
                 yield return null;
@@ -76,9 +81,11 @@ public class TitratorFinalManager : MonoBehaviour
         }
 
         TimelineEpisode currentTitratorEpisode = TitratorEpisodes[TitratorEpisodeIndex];
-
+        Debug.Log("start frame is: " + currentTitratorEpisode.StartFrame);
+        Debug.Log("index is: " + TitratorEpisodeIndex);
         titrationDirector.time = currentTitratorEpisode.StartFrame;
         titrationDirector.Evaluate();
+        Debug.Log("timeline time is now: " + titrationDirector.time);
         
 
         EpisodeObject = GameObject.Find(currentTitratorEpisode.EpisodeObjectName);
@@ -220,7 +227,7 @@ public class TitratorFinalManager : MonoBehaviour
                         }*/
 
                         audioSource.clip = currentTitratorEpisode.EpisodeAudio;
-                        audioSource.Play();
+                        //audioSource.Play();
                         titrationDirector.time = titrationDirector.time;
                         titrationDirector.playableGraph.GetRootPlayable(0).SetSpeed(1);
                         Debug.Log("playing episode audio");
@@ -260,8 +267,8 @@ public class TitratorFinalManager : MonoBehaviour
 
         while (true)
         {
-            Debug.Log("end frame is: " + currentTitratorEpisode.EndFrame + "and time is: " + Mathf.Round((float)titrationDirector.time));
-            if (Mathf.Round((float)titrationDirector.time) == currentTitratorEpisode.EndFrame)
+            Debug.Log("end frame is: " + currentTitratorEpisode.EndFrame + "and time is: " + Math.Round((float)titrationDirector.time,2));
+            if (Math.Round((float)titrationDirector.time,2) == currentTitratorEpisode.EndFrame)
             {
                 Debug.Log("end time reached, stopping timeline");
                 titrationDirector.playableGraph.GetRootPlayable(0).SetSpeed(0);
@@ -269,9 +276,28 @@ public class TitratorFinalManager : MonoBehaviour
             }
 
 
+
             yield return null;
         }
-        TitratorEpisodeIndex += 1;
+        if (ffChapter)
+        {
+            Debug.Log("fast forwarding");
+            TitratorEpisodeIndex += 2;
+            ffChapter = false;
+            rewindChapter = false;
+        }
+        else if (rewindChapter)
+        {
+            Debug.Log("rewinding an episode");
+            TitratorEpisodeIndex -= 1;
+            ffChapter = false;
+            rewindChapter = false;
+        }
+        else
+        {
+            TitratorEpisodeIndex += 1;
+        }
+        
             Debug.Log("playing next episode, index is " + TitratorEpisodeIndex);
             if (TitratorEpisodeIndex < (TitratorEpisodes.Count))
             {
@@ -280,4 +306,31 @@ public class TitratorFinalManager : MonoBehaviour
 
 
     }
+
+    public void RewindOneEpisode()
+    {
+        Debug.Log("set to rewind");
+        rewindChapter=true;
+    }
+
+    public void FastForwardOneEpisode()
+    {
+        Debug.Log("set to fast forward");
+        ffChapter = true;
+    }
+
+    public void PauseScene()
+    {
+        audioSource.Pause();
+        titrationDirector.time = titrationDirector.time;
+        titrationDirector.playableGraph.GetRootPlayable(0).SetSpeed(0);
+    }
+
+    public void UnpauseScene()
+    {
+        audioSource.UnPause();
+        titrationDirector.time = titrationDirector.time;
+        titrationDirector.playableGraph.GetRootPlayable(0).SetSpeed(1);
+    }
 }
+
