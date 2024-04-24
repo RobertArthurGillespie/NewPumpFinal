@@ -6,6 +6,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.Playables;
 using UnityEngine.Timeline;
+using UnityEngine.UI;
 
 public class TitratorFinalManager : MonoBehaviour
 {
@@ -25,23 +26,40 @@ public class TitratorFinalManager : MonoBehaviour
     public UIManager uiManager;
     public bool rewindChapter = false;
     public bool ffChapter = false;
-    
+    public bool ccMenuOpen = false;
+    public bool ccMenuIsMoving = false;
+    public bool simHasBegun = false;
+    TimelineEpisode currentTitratorEpisode;
+    TimelineEpisode previousTitratorEpisode;
+    TimelineEpisode nextTitratorEpisode;
+
     // Start is called before the first frame update
     void Start()
     {
-
+        foreach(TimelineEpisode episode in TitratorEpisodes)
+        {
+            episode.hasPassed = false;
+        }
         titrationDirector = TimelineObject.GetComponent<PlayableDirector>();
         titrationDirector.time = titrationDirector.time;
         titrationDirector.playableGraph.GetRootPlayable(0).SetSpeed(0);
-        PlayNextEpisode();
+        /*PlayNextEpisode();
+        //uiManager.ExpandMenu();
+        StartCoroutine(WaitThenCollapseMenu());
         Debug.Log(titrationDirector.playableAsset + "is playable asset");
-        Debug.Log(titrationDirector.playableAsset.duration);
+        Debug.Log(titrationDirector.playableAsset.duration);*/
     }
 
     // Update is called once per frame
     void Update()
     {
-        
+        if (Input.GetKeyDown(KeyCode.LeftShift))
+        {
+            Debug.Log("button color should change");
+            //ColorBlock newColorBlock = GameObject.Find("BackButton").GetComponent<Button>().colors;
+            //newColorBlock.normalColor = Color.gray; 
+            //GameObject.Find("BackButton").GetComponent<Image>().color = new Color(0.5754717f, 0.5754717f, 0.5754717f, 1f);
+        }
     }
 
     public void PlayIntroAudio()
@@ -50,13 +68,261 @@ public class TitratorFinalManager : MonoBehaviour
         audioSource.Play();
     }
 
+    public IEnumerator WaitThenCollapseMenu()
+    {
+        ccMenuOpen = true;
+        yield return new WaitForSeconds(20f);
+        ccMenuOpen = false;
+        uiManager.CollapseMenu();
+    }
+
+    public void ToggleCCMenu()
+    {
+        if (!ccMenuIsMoving)
+        {
+            StartCoroutine(ToggleCCMenuCoroutine());
+        }
+       
+    }
+
+    public IEnumerator ToggleCCMenuCoroutine()
+    {
+        if (!ccMenuIsMoving)
+        {
+            if (ccMenuOpen)
+            {
+                ccMenuIsMoving = true;
+                uiManager.CollapseMenu();
+                yield return new WaitForSeconds(1f);
+                ccMenuOpen = false;
+                GameObject.Find("SimScriptText").GetComponent<TextMeshProUGUI>().text = currentTitratorEpisode.EpisodeText;
+                ccMenuIsMoving = false;
+            }
+            else if (!ccMenuOpen)
+            {
+                ccMenuIsMoving = true;
+                uiManager.ExpandMenu();
+                yield return new WaitForSeconds(1f);
+                ccMenuOpen = true;
+                GameObject.Find("SimScriptText").GetComponent<TextMeshProUGUI>().text = currentTitratorEpisode.CloseCaptionText;
+                ccMenuIsMoving = false;
+            }
+        }
+    }
+
+    public void ChangeFontSize()
+    {
+        float FontSize = GameObject.Find("SimScriptText").GetComponent<TextMeshProUGUI>().fontSize;
+        if (FontSize == 18)
+        {
+            GameObject.Find("SimScriptText").GetComponent<TextMeshProUGUI>().fontSize = 12;
+        }
+        else if (FontSize == 16)
+        {
+            GameObject.Find("SimScriptText").GetComponent<TextMeshProUGUI>().fontSize = 18;
+        }
+        else if (FontSize == 14)
+        {
+            GameObject.Find("SimScriptText").GetComponent<TextMeshProUGUI>().fontSize = 16;
+        }
+        else if (FontSize == 12)
+        {
+            GameObject.Find("SimScriptText").GetComponent<TextMeshProUGUI>().fontSize = 14;
+        }
+    }
 
     public void PlayNextEpisode()
     {
-        StartCoroutine(PlayTimelineEpisode());
+        //StartCoroutine(PlayTimelineEpisode());
+        StartCoroutine(PlayScene());
     }
 
-    public IEnumerator PlayTimelineEpisode()
+    public IEnumerator PlayScene()
+    {
+        currentTitratorEpisode = TitratorEpisodes[TitratorEpisodeIndex];
+        int prevEpisodeIndex = TitratorEpisodeIndex;
+        int nextEpisodeIndex = TitratorEpisodeIndex;
+        prevEpisodeIndex -= 1;
+        nextEpisodeIndex += 1;
+        if (prevEpisodeIndex > -1)
+        {
+            previousTitratorEpisode = TitratorEpisodes[prevEpisodeIndex];
+        }
+        else
+        {
+            previousTitratorEpisode = null;
+        }
+        if (nextEpisodeIndex <= TitratorEpisodes.Count)
+        {
+            nextTitratorEpisode = TitratorEpisodes[nextEpisodeIndex];
+        }
+        else
+        {
+            nextTitratorEpisode = null;
+        }
+        titrationDirector.time = currentTitratorEpisode.StartFrame;
+        titrationDirector.Evaluate();
+        if (TitratorEpisodeIndex != 0)
+        {
+            uiManager.simText.text = currentTitratorEpisode.EpisodeText;
+        }
+        
+        titrationDirector.time = titrationDirector.time;
+        if (previousTitratorEpisode!=null)
+        {
+            if ((previousTitratorEpisode.hasPassed)&&(TitratorEpisodeIndex != 0)){
+                GameObject.Find("BackButton").GetComponent<Button>().interactable = true;
+                GameObject.Find("BackButton").GetComponent<Image>().color = new Color(1f, 1f, 1f, 1f);
+            }
+            
+        }
+        else
+        {
+            Debug.Log("back button should be disabled");
+            GameObject.Find("BackButton").GetComponent<Button>().interactable = false;
+            
+            GameObject.Find("BackButton").GetComponent<Image>().color = new Color(0.3301887f, 0.3301887f, 0.3301887f, 1f);
+        }
+        Debug.Log("past first check");
+        if(nextTitratorEpisode!=null)
+        {
+            if (nextTitratorEpisode.hasPassed)
+            {
+
+                GameObject.Find("ForwardButton").GetComponent<Button>().interactable = true;
+                GameObject.Find("ForwardButton").GetComponent<Image>().color = new Color(1f, 1f, 1f, 1f);
+
+            }
+            else
+            {
+                GameObject.Find("ForwardButton").GetComponent<Button>().interactable = false;
+                GameObject.Find("ForwardButton").GetComponent<Image>().color = new Color(0.3301887f, 0.3301887f, 0.3301887f, 1f);
+            }
+
+        }
+        else
+        {
+            GameObject.Find("ForwardButton").GetComponent<Button>().interactable = false;
+            GameObject.Find("ForwardButton").GetComponent<Image>().color = new Color(0.3301887f, 0.3301887f, 0.3301887f, 1f);
+        }
+        
+        titrationDirector.playableGraph.GetRootPlayable(0).SetSpeed(1);
+        while (true)
+        {
+            if (titrationDirector.time>=currentTitratorEpisode.EndFrame)
+            {
+                titrationDirector.time = currentTitratorEpisode.EndFrame;
+                titrationDirector.Evaluate();
+                titrationDirector.playableGraph.GetRootPlayable(0).SetSpeed(0);
+                break;
+            }
+            else if (ffChapter)
+            {
+                break;
+            }
+            else if (rewindChapter)
+            {
+                break;
+            }
+            yield return null;
+        }
+        if (ffChapter)
+        {
+            titrationDirector.time = titrationDirector.time;
+            titrationDirector.playableGraph.GetRootPlayable(0).SetSpeed(0);
+            ffChapter = false;
+            TitratorEpisodeIndex += 1;
+            if (TitratorEpisodeIndex < TitratorEpisodes.Count)
+            {
+                PlayNextEpisode();
+            }
+
+        }
+        else if (rewindChapter)
+        {
+            titrationDirector.time = titrationDirector.time;
+            titrationDirector.playableGraph.GetRootPlayable(0).SetSpeed(0);
+            rewindChapter = false;
+            TitratorEpisodeIndex -= 1;
+            if (TitratorEpisodeIndex < TitratorEpisodes.Count)
+            {
+                PlayNextEpisode();
+            }
+
+        }
+        else
+        {
+            while (true)
+            {
+                if (Input.GetMouseButtonDown(0))
+                {
+
+
+
+                    Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+
+
+                    RaycastHit hit;
+
+                    if (Physics.Raycast(ray, out hit, 100))
+                    {
+                        if (hit.transform.tag == currentTitratorEpisode.CorrectObjectTag)
+                        {
+                            currentTitratorEpisode.hasPassed = true;
+                            break;
+                        }
+                        else if (rewindChapter)
+                        {
+                            break;
+                        }
+                        else if (ffChapter)
+                        {
+                            break;
+                        }
+                    }
+                }
+                yield return null;
+            }
+            if (ffChapter)
+            {
+                titrationDirector.time = titrationDirector.time;
+                titrationDirector.playableGraph.GetRootPlayable(0).SetSpeed(0);
+                ffChapter = false;
+                TitratorEpisodeIndex += 2;
+                if (TitratorEpisodeIndex < TitratorEpisodes.Count)
+                {
+                    PlayNextEpisode();
+                }
+
+            }
+            else if (rewindChapter)
+            {
+                titrationDirector.time = titrationDirector.time;
+                titrationDirector.playableGraph.GetRootPlayable(0).SetSpeed(0);
+                rewindChapter = false;
+                TitratorEpisodeIndex -= 1;
+                if (TitratorEpisodeIndex < TitratorEpisodes.Count)
+                {
+                    PlayNextEpisode();
+                }
+            }
+            else
+            {
+                titrationDirector.time = titrationDirector.time;
+                titrationDirector.playableGraph.GetRootPlayable(0).SetSpeed(0);
+                TitratorEpisodeIndex += 1;
+                if (TitratorEpisodeIndex < TitratorEpisodes.Count)
+                {
+                    PlayNextEpisode();
+                }
+            }
+        }
+        
+        
+        yield return null;
+    }
+
+    /*public IEnumerator PlayTimelineEpisode()
     {
         Material[] MatArray = new Material[1];
 
@@ -226,7 +492,7 @@ public class TitratorFinalManager : MonoBehaviour
                             pumpAnimator.GetComponent<Animator>().SetBool(currentTitratorEpisode.AnimationBool, true);
                         }*/
 
-                        audioSource.clip = currentTitratorEpisode.EpisodeAudio;
+                        /*audioSource.clip = currentTitratorEpisode.EpisodeAudio;
                         //audioSource.Play();
                         titrationDirector.time = titrationDirector.time;
                         titrationDirector.playableGraph.GetRootPlayable(0).SetSpeed(1);
@@ -305,7 +571,7 @@ public class TitratorFinalManager : MonoBehaviour
             }
 
 
-    }
+    }*/
 
     public void RewindOneEpisode()
     {
@@ -321,14 +587,22 @@ public class TitratorFinalManager : MonoBehaviour
 
     public void PauseScene()
     {
-        audioSource.Pause();
+        
         titrationDirector.time = titrationDirector.time;
         titrationDirector.playableGraph.GetRootPlayable(0).SetSpeed(0);
     }
 
     public void UnpauseScene()
     {
-        audioSource.UnPause();
+        if (!simHasBegun)
+        {
+            simHasBegun = true;
+            PlayNextEpisode();
+            //uiManager.ExpandMenu();
+            StartCoroutine(WaitThenCollapseMenu());
+            Debug.Log(titrationDirector.playableAsset + "is playable asset");
+            Debug.Log(titrationDirector.playableAsset.duration);
+        }
         titrationDirector.time = titrationDirector.time;
         titrationDirector.playableGraph.GetRootPlayable(0).SetSpeed(1);
     }

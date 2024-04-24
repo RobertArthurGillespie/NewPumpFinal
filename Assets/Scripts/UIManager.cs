@@ -12,6 +12,8 @@ public class UIManager : MonoBehaviour
     public bool menuIsOpen = false;
     public bool soundOff = false;
     public bool isPaused = false;
+    public bool shouldExpandOnStart = false;
+
     public Sprite soundOnButtonImage;
     public Sprite soundOffButtonImage;
     public GameObject soundButton;
@@ -43,7 +45,11 @@ public class UIManager : MonoBehaviour
         MMin -= EMin;
         Debug.Log("modified MinDiff is: "+MMin.x+","+ MMin.y);
         Debug.Log("expanding menu");
-        ExpandMenu();
+        if (shouldExpandOnStart)
+        {
+            ExpandMenu();
+        }
+        //ExpandMenu();
     }
 
     // Update is called once per frame
@@ -51,7 +57,7 @@ public class UIManager : MonoBehaviour
     {
         if (Input.GetMouseButtonDown(0))
         {
-            CollapseMenu();
+            //CollapseMenu();
         }
     }
 
@@ -115,6 +121,8 @@ public class UIManager : MonoBehaviour
             OpenMainMenu();
         }
     }
+
+    
 
     public void ToggleSound()
     {
